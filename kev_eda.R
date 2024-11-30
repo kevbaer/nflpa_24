@@ -6,7 +6,10 @@ library(tidyverse)
 library(tidymodels)
 set.seed(11042004)
 library(wesanderson)
+library(gt)
 # Data stuff --------------------------------------------------------------
+
+verse <- load_players()
 
 df <- load_contracts() |> 
   filter(year_signed >= 2015) |> 
@@ -56,7 +59,7 @@ df_added |>
 # setup for kmeans --------------------------------------------------------
 kmeans_df <- df |> 
   drop_na(c(guaranteed, apy)) |> 
-  select(player,year_signed, apy, guaranteed)
+  select(gsis_id, player,year_signed, apy, guaranteed, is_active)
 
 
 
@@ -100,7 +103,7 @@ scree_plot
 
 # Final + plot ------------------------------------------------------------
 
-kmeans_spec <- k_means(num_clusters = 3)
+kmeans_spec <- k_means(num_clusters = 4)
 
 kmeans_fit <- kmeans_spec |> 
   fit(~ apy + guaranteed,
@@ -118,28 +121,76 @@ final |>
 # plot ------------------------------------------------------------
 
 
-plot_2015 <- final |> 
+working <- final |> 
   filter(year_signed %in% c(2015,2016,2017, 2022,2023,2024)) |> 
   mutate(
     Time = case_when(
       year_signed %in% c(2015,2016,2017) ~ "Past 2015-2017",
       year_signed %in% c(2022,2023,2024) ~ "Current 2022-2024",
     )
-  )
+  ) |> 
+  mutate(added = guaranteed + apy)
 
 
-plot_2015 |> 
-  ggplot(aes(fill = Time, x = .pred_cluster, y = after_stat(prop), group = fct_rev(Time), label = round(after_stat(prop),3))) +
+working |> 
+  ggplot(aes(fill = Time, x = .pred_cluster, y = after_stat(prop*100), 
+             group = fct_rev(Time), 
+             label = paste0(round(after_stat(prop*100),1),"%"))) +
   geom_bar(position = "dodge") +
   geom_text(stat = 'count',
             position = position_dodge(.9), 
             vjust = -0.5, 
             size = 3) +
+  ylab("Percentage of players in era per cluster") +
+  xlab("Clusters")+
   theme(
     legend.position = c(.95, .95),
     legend.justification = c("right", "top"),
     legend.box.just = "right",
     legend.margin = margin(6, 6, 6, 6))+
-  scale_fill_manual(values=wesanderson::wes_palette(n=2, name="GrandBudapest1"))
+  scale_fill_manual(values=wesanderson::wes_palette(n=2, name="GrandBudapest1"), drop = FALSE)
+
+
+era1players <- working |> 
+  filter(Time == "Past 2015-2017")
+
+presentplayers <- working |> 
+  filter(Time == "Current 2022-2024")
+
+cluster1players <- working |> 
+  filter(.pred_cluster == "Cluster_1") |> 
+  arrange(-added) |> 
+  filter(!row_number() %in% 1:4) # These players were briefly on the franchise tag but guaranteed money is wrong
+
+cluster2players <- working |> 
+  filter(.pred_cluster == "Cluster_2")
+
+cluster3players <- working |> 
+  filter(.pred_cluster == "Cluster_3")
+
+cluster4players <- working |> 
+  filter(.pred_cluster == "Cluster_4")
+
+
+pal <- wes_palette(2, name = "GrandBudapest1")
+pal <- unclass(pal)
+
+cluster4players |> 
+  select(year_signed, player, apy, guaranteed) |>
+  slice_sample(n = nrow(cluster4players)) |> 
+  mutate(apy = round(apy, 2),guaranteed= round(guaranteed, 2)) |> 
+  gt() |> 
+  tab_style(
+    style = cell_fill(color = pal[1]),
+    locations = cells_body(
+      columns = year_signed,
+      rows = year_signed >= 2022
+    )) |> 
+  tab_style(
+    style = cell_fill(color = pal[2]),
+    locations = cells_body(
+      columns = year_signed,
+      rows = year_signed < 2022
+    ))
 
 
