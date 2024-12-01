@@ -1,0 +1,364 @@
+---
+editor: visual
+
+execute:
+  echo: false
+
+title: |
+  Representing the Players \
+  ABCDEFG
+subtitle: |
+  NFLPA | 2024 Analytics Case Competition \
+  UCLA + Bruin Sports Analytics Entry
+short-title: NFLPA Competition Paper
+code-repo: "Access the code and data at <https://github.com/kevbaer/nflpa_24>"
+author:
+  - name: Kevin Baer
+    email: kevinbaer@ucla.edu
+    affiliations: 
+      - id: ucla
+        name: UCLA
+  - name: Steven Lu Chen
+    email: stevenchen@ucla.edu
+    affiliations:
+      - id: ucla
+        name: UCLA
+  - name: Abhinav Madabhushi
+    email:  abhinavm@ucla.edu
+    affiliations:
+      - id: ucla
+        name: UCLA
+  - name: Trent Bellinger
+    email:  trentbellinger@ucla.edu
+    affiliations:
+      - id: ucla
+        name: UCLA
+number-sections: true
+abstract: |
+  Space: the final frontier. These are the voyages of the starship *Enterprise*. Its continuing mission: to explore strange new worlds. To seek out new life and new civilizations. To boldly go where no one has gone before!
+thanks: |
+  Quarto template from Andrew Heiss <https://github.com/andrewheiss/hikmah-academic-quarto>.
+
+date: November 30, 2024
+bibliography: NFLPA_24.bib
+csl: apa.csl
+format:
+  hikmah-pdf: default
+  hikmah-manuscript-docx: default
+  hikmah-manuscript-odt: default
+  hikmah-manuscript-pdf: default
+  
+nocite: |
+  @*
+---
+
+```{r}
+#| label: mailroom
+#| output: false
+set.seed(11042004)
+
+library(nflreadr)
+library(tidyclust)
+library(tidyverse)
+library(wesanderson)
+library(gt)
+library(ggthemes)
+library(RColorBrewer)
+library(gtExtras)
+```
+
+```{r}
+#| label: load
+df <- load_contracts() |> 
+  filter(year_signed >= 2015) |> 
+  filter(!is.na(years))
+
+```
+
+```{r}
+#| label: kmeans_setup
+kmeans_df <- df |> 
+  drop_na(c(guaranteed, apy_cap_pct)) |> 
+  select(gsis_id, player,year_signed, apy, guaranteed, is_active, inflated_apy, inflated_guaranteed)
+
+# shuffle rows
+kmeans_df <- kmeans_df |> 
+  arrange(inflated_apy)
+```
+
+```{r}
+#| label: scree_plot
+n <- 10
+wss <- numeric(n)
+
+for (i in 1:n) {
+  # Fit the model: km.out
+  kmeans_spec <- k_means(num_clusters = i)
+  
+  kmeans_fit <- kmeans_spec |> 
+    fit(~ inflated_apy + inflated_guaranteed,
+        data = kmeans_df
+    )
+  kmeans_summary <- kmeans_fit |>
+    extract_fit_summary()
+  # Save the within cluster sum of squares
+  wss[i] <- sum(kmeans_summary$sse_within_total_total)
+}
+
+
+
+wss_df <- tibble(clusters = 1:n, wss = wss)
+
+scree_plot <- ggplot(wss_df, aes(x = clusters, y = wss, group = 1)) +
+  geom_point(size = 4)+
+  geom_line() +
+  scale_x_continuous(breaks = c(2, 4, 6, 8, 10)) +
+  xlab('Number of clusters') +
+  geom_hline(
+    yintercept = wss, 
+    linetype = 'dashed', 
+    col = "black"
+  ) +
+  theme_clean()
+```
+
+```{r}
+#| label: kmeans_plot
+kmeans_spec <- k_means(num_clusters = 4)
+
+kmeans_fit <- kmeans_spec |> 
+  fit(~ inflated_apy + inflated_guaranteed,
+      data = kmeans_df
+  )
+
+
+final <- kmeans_fit |> 
+  augment(kmeans_df) |> 
+  mutate(added = inflated_apy + inflated_guaranteed)|> 
+  filter(!(added > 15 & inflated_guaranteed == 0))
+
+kmeans_plot <- final |> 
+  ggplot(aes(inflated_apy, inflated_guaranteed, colour = .pred_cluster, shape = .pred_cluster))+
+  geom_point(alpha = 0.7, size= 3) +
+  scale_shape_manual(values = c(15,16,17,8))+
+  scale_colour_brewer(palette = "Set1")+
+  labs(title = "Clustering Players by APY and Guaranteed Money")+
+  labs(color = "Cluster", shape = "Cluster")+
+  theme_clean()
+```
+
+```{r}
+#| label: holding_cell
+working <- final |> 
+  filter(year_signed %in% c(2015,2016,2017, 2022,2023,2024)) |> 
+  mutate(
+    Time = case_when(
+      year_signed %in% c(2015,2016,2017) ~ "Past 2015-2017",
+      year_signed %in% c(2022,2023,2024) ~ "Current 2022-2024",
+    )
+  ) |>   # These players were briefly on the franchise tag but guaranteed money is wrong
+  arrange(-inflated_apy) |> 
+  distinct(gsis_id, Time, .keep_all=TRUE)
+  
+barplot_1 <- working |> 
+  ggplot(aes(fill = Time, x = .pred_cluster, y = after_stat(prop*100), 
+             group = fct_rev(Time), 
+             label = paste0(round(after_stat(prop*100),1),"%"))) +
+  geom_bar(position = "dodge") +
+  geom_text(stat = 'count',
+            position = position_dodge(.9), 
+            vjust = -0.5, 
+            size = 3) +
+  ylab("Percentage of players") +
+  xlab("Clusters")+
+  theme(
+    legend.position = "inside", legend.position.inside = c(0.9, 0.8))+
+  scale_fill_manual(values=wesanderson::wes_palette(n=2, name="GrandBudapest1"), drop = FALSE,  
+                    guide = guide_legend(reverse = TRUE))+
+  theme_clean()
+
+era1players <- working |> 
+  filter(Time == "Past 2015-2017")
+
+presentplayers <- working |> 
+  filter(Time == "Current 2022-2024") 
+
+cluster1players <- working |> 
+  filter(.pred_cluster == "Cluster_1") 
+  
+  
+cluster2players <- working |> 
+  filter(.pred_cluster == "Cluster_2") 
+
+cluster3players <- working |> 
+  filter(.pred_cluster == "Cluster_3") 
+
+cluster4players <- working |> 
+  filter(.pred_cluster == "Cluster_4") 
+
+
+pal <- wes_palette(2, name = "GrandBudapest1")
+pal <- unclass(pal)
+```
+
+```{r}
+#| label: cluster_samples
+c4 <- cluster4players |> 
+  select(year_signed, player, inflated_apy, inflated_guaranteed) |>
+  slice_sample(n = 10) |> 
+  mutate(inflated_apy = round(inflated_apy, 2),inflated_guaranteed= round(inflated_guaranteed, 2)) |> 
+  gt() |> 
+  tab_style(
+    style = cell_fill(color = pal[1]),
+    locations = cells_body(
+      columns = year_signed,
+      rows = year_signed >= 2022
+    )) |> 
+  tab_style(
+    style = cell_fill(color = pal[2]),
+    locations = cells_body(
+      columns = year_signed,
+      rows = year_signed < 2022
+    ))|> 
+  tab_header(
+    title = md("Sample of **Cluster 4**"),
+    subtitle = md("random selection of 10")
+  )
+
+
+c3 <- cluster3players |> 
+  select(year_signed, player, inflated_apy, inflated_guaranteed) |>
+  slice_sample(n = 10) |> 
+  mutate(inflated_apy = round(inflated_apy, 2),inflated_guaranteed= round(inflated_guaranteed, 2)) |> 
+  gt() |> 
+  tab_style(
+    style = cell_fill(color = pal[1]),
+    locations = cells_body(
+      columns = year_signed,
+      rows = year_signed >= 2022
+    )) |> 
+  tab_style(
+    style = cell_fill(color = pal[2]),
+    locations = cells_body(
+      columns = year_signed,
+      rows = year_signed < 2022
+    ))|> 
+  tab_header(
+    title = md("Sample of **Cluster 3**"),
+    subtitle = md("random selection of 10")
+  )
+
+
+c2 <- cluster2players |> 
+  select(year_signed, player, inflated_apy, inflated_guaranteed) |>
+  slice_sample(n = 10) |> 
+  mutate(inflated_apy = round(inflated_apy, 2),inflated_guaranteed= round(inflated_guaranteed, 2)) |> 
+  gt() |> 
+  tab_style(
+    style = cell_fill(color = pal[1]),
+    locations = cells_body(
+      columns = year_signed,
+      rows = year_signed >= 2022
+    )) |> 
+  tab_style(
+    style = cell_fill(color = pal[2]),
+    locations = cells_body(
+      columns = year_signed,
+      rows = year_signed < 2022
+    )) |> 
+  tab_header(
+    title = md("Sample of **Cluster 2**"),
+    subtitle = md("random selection of 10")
+  )
+
+c1 <- cluster1players |> 
+  select(year_signed, player, inflated_apy, inflated_guaranteed) |>
+  slice_sample(n = 10) |> 
+  mutate(inflated_apy = round(inflated_apy, 2),inflated_guaranteed= round(inflated_guaranteed, 2)) |> 
+  gt() |> 
+  tab_style(
+    style = cell_fill(color = pal[1]),
+    locations = cells_body(
+      columns = year_signed,
+      rows = year_signed >= 2022
+    )) |> 
+  tab_style(
+    style = cell_fill(color = pal[2]),
+    locations = cells_body(
+      columns = year_signed,
+      rows = year_signed < 2022
+    )) |> 
+  tab_header(
+    title = md("Sample of **Cluster 1**"),
+    subtitle = md("random selection of 10")
+  )
+```
+
+```{r}
+#| label: breakdown
+Breakdown <- working |> 
+  group_by(.pred_cluster, Time) |> 
+  summarize(mean_apy = round(mean(inflated_apy),2), 
+            mean_guaranteed = round(mean(inflated_guaranteed),2),
+            median_apy = round(median(inflated_apy),2), 
+            median_guaranteed = round(median(inflated_guaranteed),2)) |> 
+  gt() |> 
+  tab_style(
+    style = cell_fill(color = pal[1]),
+    locations = cells_body(
+      columns = Time,
+      rows = Time == "Current 2022-2024"
+    )) |> 
+  tab_style(
+    style = cell_fill(color = pal[2]),
+    locations = cells_body(
+      columns = Time,
+      rows = Time != "Current 2022-2024"
+    )) |> 
+  tab_header(
+    title = md("Breakdown of Clusters")
+  ) |> 
+  gt_theme_538() |> 
+  gt_add_divider(columns = "mean_guaranteed") |> 
+  cols_align("center") |> 
+  gtsave("Breakdown.png", expand = 10)
+```
+
+# Segmentation of Contracts
+
+NFL contracts are complicated. We are not lawyers. But a contract's salary cap implications are a bit easier to parse. Using a great tool, Arjun Menon and Brad Spielberger's Expected Contract Value Calculator [@MenonSpielberger], We can see that there are 3 main inputs to all contracts: Years, Total, and % Guaranteed.
+
+![Sample Player Contract Details on Expected Contract Value Calculator](images/Madabuike.png){width="427"}
+
+APY (Average per Year) is simply just Total divided by Years, so we can quickly get to two variables: How much is the player making per year, and how much money does the player know they are going to make (via guarantees)? Indeed, when reading about extension disputes, they typically focus on these two amounts.
+
+When trying to create compensation tiers, one could just use heuristics, but we prefer a more scientific method of K-Means Clustering. Since we have simplified a players contract down to 2 metrics (APY and Guaranteed), we can algo-organize the contracts into distinct groups. See @sec-appenda for more details on the computational decisions. Since we'll be comparing players from two different eras (10 years ago vs. Present) and the salary cap has changed greatly, OverTheCap has inflated apy and inflated guaranteed to adjust for this. More on inflating values to match differing salary caps later.
+
+```{r}
+#| label: wrapped_kmeans
+#| fig-cap: K-Means Clustering
+
+kmeans_plot
+```
+
+We have four clusters! It's difficult to tell how big each is, but we can clearly tell that there are fairly distinct borders between the four clusters. Let's look more closely at the different clusters.
+
+![Mean and Median per Cluster](Breakdown.png)
+
+From this table, we can see a lot of interesting things, many that we'll get to later. For now though, it looks like Cluster 1 players make about 1 million dollars per year, Cluster 2 players 10 million, Cluster 3 players 20 million, and Cluster 4 players about 50 million. I think this matches up well with a heuristic approach, but we're also factoring in guaranteed money, as this financial stability is one of the things that differentiates contracts. As the Menon & Spielberger contract value calculator demonstrates, players who have more guaranteed money make a larger percentage of their contracts total value. Teams love to sign players to be APY deals knowing that they'll cut them before they get the large back-end contract value. Nothing wrong with that since all agents and players know this when they sign the contract.
+
+Note that inflated guaranteed is over the whole contract (this helps give weight to those who have longer contracts) and each player is only listed in each era once to prevent Cluster 1 from being over-weighted with players who are cut and signed multiple times per season.
+
+------------------------------------------------------------------------
+
+# References
+
+::: {#refs}
+:::
+
+# Appendix A: {#sec-appenda}
+
+```{r}
+#| label: wrapped_scree
+scree_plot
+```
