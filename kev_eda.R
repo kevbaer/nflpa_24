@@ -4,11 +4,13 @@ set.seed(11042004)
 library(nflreadr)
 library(tidyclust)
 library(tidyverse)
-library(tidymodels)
+library(tidymodels) 
 library(wesanderson)
 library(gt)
 library(ggthemes)
 library(patchwork)
+library(gtExtras)
+
 # Data stuff --------------------------------------------------------------
 
 verse <- load_players()
@@ -176,6 +178,8 @@ cluster4players <- working |>
 pal <- wes_palette(2, name = "GrandBudapest1")
 pal <- unclass(pal)
 
+
+
 set.seed(11042004)
 
 c4 <- cluster4players |> 
@@ -268,4 +272,30 @@ c1 <- cluster1players |>
     subtitle = md("random selection of 10")
   )
 
+Breakdown <- working |> 
+  group_by(.pred_cluster, Time) |> 
+  summarize(mean_apy = round(mean(inflated_apy),2), 
+            mean_guaranteed = round(mean(inflated_guaranteed),2),
+            median_apy = round(median(inflated_apy),2), 
+            median_guaranteed = round(median(inflated_guaranteed),2)) |> 
+  gt() |> 
+  tab_style(
+    style = cell_fill(color = pal[1]),
+    locations = cells_body(
+      columns = Time,
+      rows = Time == "Current 2022-2024"
+    )) |> 
+  tab_style(
+    style = cell_fill(color = pal[2]),
+    locations = cells_body(
+      columns = Time,
+      rows = Time != "Current 2022-2024"
+    )) |> 
+  tab_header(
+    title = md("Breakdown of Clusters")
+  ) |> 
+  gt_theme_538() |> 
+  gt_add_divider(columns = "mean_guaranteed") |> 
+  cols_align("center")
 
+aaa
