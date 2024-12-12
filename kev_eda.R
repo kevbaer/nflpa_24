@@ -63,7 +63,7 @@ df_added |>
 # setup for kmeans --------------------------------------------------------
 kmeans_df <- df |> 
   drop_na(c(guaranteed, apy_cap_pct)) |> 
-  select(gsis_id, player,year_signed, apy, guaranteed, is_active, inflated_apy, inflated_guaranteed)
+  select(gsis_id, player,year_signed, apy,years, guaranteed, is_active, inflated_apy, inflated_guaranteed)
 
 
 
@@ -298,4 +298,7 @@ Breakdown <- working |>
   gt_add_divider(columns = "mean_guaranteed") |> 
   cols_align("center")
 
-aaa
+c1
+
+gt_two_column_layout(list(c1, c2))
+gt_two_column_layout(list(c3, c4))

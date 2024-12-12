@@ -87,6 +87,7 @@ kmeans_df <- kmeans_df |>
 ```
 
 ```{r}
+options(dplyr.summarise.inform = FALSE)
 #| label: scree_plot
 n <- 10
 wss <- numeric(n)
@@ -168,7 +169,7 @@ barplot_1 <- working |>
   geom_text(stat = 'count',
             position = position_dodge(.9), 
             vjust = -0.5, 
-            size = 3) +
+            size = 2.7) +
   ylab("Percentage of players") +
   xlab("Clusters")+
   theme(
@@ -349,6 +350,24 @@ From this table, we can see a lot of interesting things, many that we'll get to 
 
 Note that inflated guaranteed is over the whole contract (this helps give weight to those who have longer contracts) and each player is only listed in each era once to prevent Cluster 1 from being over-weighted with players who are cut and signed multiple times per season.
 
+![Cluster 1 and Cluster 2 Sample Contracts](images/c1_c2.png)
+
+![Cluster 3 and Cluster 4 Sample Contracts](images/c3_c4.png)
+
+What does the breakdown of these clusters look like when comparing the whole NFL from 2015-2017 to 2022-2024?
+
+```{r}
+#| label: wrapped_barplot
+#| fig-cap: Comparing 2015-2017 to 2022-2024 for each cluster
+barplot_1
+```
+
+After this thorough analysis (adjusting for changes in the salary cap, length of contract, guaranteed vs APY, etc.) We have finally reached some sort of analysis of changes in NFL team building strategy, and the take away is... largely the same. The NFL has not changed much. in the past 7-10 years, teams are still relying heavily on min salary players with little to no guaranteed money (median for cluster 1 is 0.06 million dollars guaranteed) with about 10% early draft picks and well paid veterans, and about 4% superstars. It's interesting that clusters 2 to 4 have ticked up slight from 2015-2017, this potentially suggests teams are focusing more on using their salaries for difference makers, letting the leagues relative depth of players (only 1.6% of college players make it to the NFL!)[@CollegeAdvisoryCommittee] Since 87% of players signed between 2022-2024 are in Cluster 1, that is our middle class, making on average 1.12 million per year, just above the min salary for rookies of 0.795 million per year, and below the min salary for veterans (4 or more years). This suggests that a large percentage of our middle class players are not veterans, instead players in their first three seasons who were late draft picks or undrafted and are bouncing around rosters looking for a contract that promises financial and familial stability. In the next section, we'll look at our claim that when adjusting for the inflation in the salary cap, the middle class has not changed much and what this means for roster building, and the NFLPA, before finally exploring our suggestions for how the NFLPA can best advocate for these middle class players.
+
+# How Has the Middle Class Changed?
+
+Over the past 10 years, we found that our four clusters had stayed largely consistent in terms of percent breakdown, with cluster 1 at \~88%, cluster 2 at \~9%, cluster 3 at \~3%, and cluster 4 at \~0.5%. But this does not mean that the salary cap inflation explains everything. For one, the NFL salary cap inflation has far outpaced US dollar inflation, meaning that cluster 1 players are making more now compared to 2015 vs the rest of the population. On the other hand, according to our analysis, the average NFL contract length when signed has gone down from 2.47 in 2015-2017 to 2.42 in 2022-2024. This decrease of 0.05 years per contract might not seem like much, but it means that one out of every twenty contracts is one year shorter than in 2015-2017, all else being equal. This provides a meaningful decrease in financial security – these players can't automatically replace that contract with a new one like a Dak Prescott who took shorter contracts on purpose to maximize his earnings. Furthermore, with a wide variety of NFL incentives being based on how many years you play in the NFL for, contracts being shorter now than in 2015-2017 hurts these middle class players who are seeking that long term security. Why has this happened? We believe the NFL is pretty saturated with players. As pointed out above, very few college players play in the NFL. With leagues like the UFL/XFL/CFL and now more European teams starting up, there are many pipelines into the NFL. Practice squads have gotten larger, teams are cycling through the back half of their rosters pretty quickly and aggressively choosing to spend the majority of salary, playing reps, and roster security on starters, and key reserves (often early draft picks). These veteran stopgap contracts have, to our eyes, become more common and fewer late draft picks are receiving second contracts with their drafted teams. This has led to a middle class that is roughly the same size – but shorter contracts, less potential to move up to cluster 2/3/4 contracts, and more mercenary-like treatment from teams. Addressing these concerns will be the focus of our four suggestions for the NFLPA to advocate for middle class players.
+
 ------------------------------------------------------------------------
 
 # References
@@ -356,9 +375,13 @@ Note that inflated guaranteed is over the whole contract (this helps give weight
 ::: {#refs}
 :::
 
-# Appendix A: {#sec-appenda}
+# Appendix A (K-means Clustering) : {#sec-appenda}
+
+K-means clustering is a good choice for grouping data points but one key question is how many groups to make. Certain numbers are better choices than others based on the data, and here we use a Scree plot to find the greatest value with significant change from the one prior.
 
 ```{r}
 #| label: wrapped_scree
 scree_plot
 ```
+
+From this we can see that 3 or 4 could both be good choices, but having 4 clusters will give us more specificity and detail which is a benefit.
