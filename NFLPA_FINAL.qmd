@@ -5,8 +5,8 @@ execute:
   echo: false
 
 title: |
-  Representing the Players \
-  ABCDEFG
+  Representing Football: \
+  Advocacy for the Whole NFL
 subtitle: |
   NFLPA | 2024 Analytics Case Competition \
   UCLA + Bruin Sports Analytics Entry
@@ -34,12 +34,10 @@ author:
       - id: ucla
         name: UCLA
 number-sections: true
-abstract: |
-  Space: the final frontier. These are the voyages of the starship *Enterprise*. Its continuing mission: to explore strange new worlds. To seek out new life and new civilizations. To boldly go where no one has gone before!
 thanks: |
   Quarto template from Andrew Heiss <https://github.com/andrewheiss/hikmah-academic-quarto>.
 
-date: November 30, 2024
+date: December 12, 2024
 bibliography: NFLPA_24.bib
 csl: apa.csl
 format:
@@ -321,9 +319,41 @@ Breakdown <- working |>
   ) |> 
   gt_theme_538() |> 
   gt_add_divider(columns = "mean_guaranteed") |> 
-  cols_align("center") |> 
-  gtsave("Breakdown.png", expand = 10)
+  cols_align("center")
+
+Breakdown2 <- working |> 
+  filter(.pred_cluster == "Cluster_4") |> 
+    group_by(Time) |>
+  summarize(mean_apy = round(mean(inflated_apy),2), 
+            mean_guaranteed = round(mean(inflated_guaranteed),2),
+            median_apy = round(median(inflated_apy),2), 
+            median_guaranteed = round(median(inflated_guaranteed),2)) |> 
+  gt() |> 
+  tab_style(
+    style = cell_fill(color = pal[1]),
+    locations = cells_body(
+      columns = Time,
+      rows = Time == "Current 2022-2024"
+    )) |> 
+  tab_style(
+    style = cell_fill(color = pal[2]),
+    locations = cells_body(
+      columns = Time,
+      rows = Time != "Current 2022-2024"
+    )) |> 
+  tab_header(
+    title = md("Cluster 4 Players")
+  ) |> 
+  gt_theme_538() |> 
+  gt_add_divider(columns = "mean_guaranteed") |> 
+  cols_align("center")
 ```
+
+# Introduction
+
+In the 2024 NFLPA Analytics Case Competition, we seek to devise a technical way to differentiate tiers of player contracts, describe and analyze the "middle class" of NFL players, and provide guidance to the NFLPA on how best to advocate for these players. We start with a quick explanation of NFL contracts and how to evaluate them, explain our adjustments for salary cap inflation, and then explore the four distinct compensation clusters and how they've changed from the past (2015-2017) to the present (2022-2024). We then provide some thoughts on changes in the NFL's middle-class player stability and success before giving four suggestions on NFLPA advocacy. We have kept this report to \~10 pages for concision and relegated some more technical aspects to the appendices. Thank you for your time and the chance to submit an entry for this competition.
+
+{{< pagebreak >}}
 
 # Segmentation of Contracts
 
@@ -331,9 +361,9 @@ NFL contracts are complicated. We are not lawyers. But a contract's salary cap i
 
 ![Sample Player Contract Details on Expected Contract Value Calculator](images/Madabuike.png){width="427"}
 
-APY (Average per Year) is simply just Total divided by Years, so we can quickly get to two variables: How much is the player making per year, and how much money does the player know they are going to make (via guarantees)? Indeed, when reading about extension disputes, they typically focus on these two amounts.
+APY (Average per Year) is just Total divided by Years, so we can quickly get to two variables: How much is the player making per year, and how much money does the player know they are going to make (via guarantees)? Indeed, when reading about extension disputes, they typically focus on these two amounts.
 
-When trying to create compensation tiers, one could just use heuristics, but we prefer a more scientific method of K-Means Clustering. Since we have simplified a players contract down to 2 metrics (APY and Guaranteed), we can algo-organize the contracts into distinct groups. See @sec-appenda for more details on the computational decisions. Since we'll be comparing players from two different eras (10 years ago vs. Present) and the salary cap has changed greatly, OverTheCap has inflated apy and inflated guaranteed to adjust for this. More on inflating values to match differing salary caps later.
+When creating compensation tiers, one could use heuristics, but we prefer a more scientific method of K-Means Clustering. Since we have simplified a player's contract down to 2 metrics (APY and Guaranteed), we can algo-organize the contracts into distinct groups. See @sec-appenda for more details on the computational decisions. Since we'll be comparing players from two different eras (10 years ago vs. Present) and the salary cap has changed greatly, OverTheCap has inflated APY and inflated guaranteed to adjust for this. More on inflating values to match differing salary caps later.
 
 ```{r}
 #| label: wrapped_kmeans
@@ -342,11 +372,11 @@ When trying to create compensation tiers, one could just use heuristics, but we 
 kmeans_plot
 ```
 
-We have four clusters! It's difficult to tell how big each is, but we can clearly tell that there are fairly distinct borders between the four clusters. Let's look more closely at the different clusters.
+We have four clusters! It's difficult to tell how big each is, but we can tell that there are fairly distinct borders between the four clusters. Let's look more closely at the different clusters.
 
 ![Mean and Median per Cluster](Breakdown.png)
 
-From this table, we can see a lot of interesting things, many that we'll get to later. For now though, it looks like Cluster 1 players make about 1 million dollars per year, Cluster 2 players 10 million, Cluster 3 players 20 million, and Cluster 4 players about 50 million. I think this matches up well with a heuristic approach, but we're also factoring in guaranteed money, as this financial stability is one of the things that differentiates contracts. As the Menon & Spielberger contract value calculator demonstrates, players who have more guaranteed money make a larger percentage of their contracts total value. Teams love to sign players to be APY deals knowing that they'll cut them before they get the large back-end contract value. Nothing wrong with that since all agents and players know this when they sign the contract.
+From this table, we can see a lot of interesting things, many that we'll get to later. For now, though, it looks like Cluster 1 players make about 1 million dollars per year, Cluster 2 players 10 million, Cluster 3 players 20 million, and Cluster 4 players about 50 million. I think this matches up well with a heuristic approach, but we're also factoring in guaranteed money, as this financial stability is one of the things that differentiates contracts. As the Menon & Spielberger contract value calculator demonstrates, players who have more guaranteed money make a larger percentage of their contract's total value. Teams love to sign players to be APY deals knowing that they'll cut them before they get the large back-end contract value. Nothing wrong with that since all agents and players know this when they sign the contract.
 
 Note that inflated guaranteed is over the whole contract (this helps give weight to those who have longer contracts) and each player is only listed in each era once to prevent Cluster 1 from being over-weighted with players who are cut and signed multiple times per season.
 
@@ -362,18 +392,50 @@ What does the breakdown of these clusters look like when comparing the whole NFL
 barplot_1
 ```
 
-After this thorough analysis (adjusting for changes in the salary cap, length of contract, guaranteed vs APY, etc.) We have finally reached some sort of analysis of changes in NFL team building strategy, and the take away is... largely the same. The NFL has not changed much. in the past 7-10 years, teams are still relying heavily on min salary players with little to no guaranteed money (median for cluster 1 is 0.06 million dollars guaranteed) with about 10% early draft picks and well paid veterans, and about 4% superstars. It's interesting that clusters 2 to 4 have ticked up slight from 2015-2017, this potentially suggests teams are focusing more on using their salaries for difference makers, letting the leagues relative depth of players (only 1.6% of college players make it to the NFL!)[@CollegeAdvisoryCommittee] Since 87% of players signed between 2022-2024 are in Cluster 1, that is our middle class, making on average 1.12 million per year, just above the min salary for rookies of 0.795 million per year, and below the min salary for veterans (4 or more years). This suggests that a large percentage of our middle class players are not veterans, instead players in their first three seasons who were late draft picks or undrafted and are bouncing around rosters looking for a contract that promises financial and familial stability. In the next section, we'll look at our claim that when adjusting for the inflation in the salary cap, the middle class has not changed much and what this means for roster building, and the NFLPA, before finally exploring our suggestions for how the NFLPA can best advocate for these middle class players.
+After this thorough analysis (adjusting for changes in the salary cap, length of contract, guaranteed vs APY, etc.) We have finally reached some sort of analysis of changes in NFL team-building strategy, and the takeaway is... largely the same. The NFL has not changed much in the past 7-10 years, teams are still relying heavily on min salary players with little to no guaranteed money (median for cluster 1 is 0.06 million dollars guaranteed) with about 10% early draft picks and well-paid veterans, and about 4% superstars. Interestingly, clusters 2 to 4 have ticked up slightly from 2015-2017, this potentially suggests teams are focusing more on using their salaries for difference makers, letting the league's relative depth of players (only 1.6% of college players make it to the NFL!)[@CollegeAdvisoryCommittee] Since 87% of players signed between 2022-2024 are in Cluster 1, that is our middle-class, making on average 1.12 million per year, just above the min salary for rookies of 0.795 million per year, and below the min salary for veterans (4 or more years). This suggests that a large percentage of our middle class players are not veterans, instead players in their first three seasons who were late draft picks or undrafted and are bouncing around rosters looking for a contract that promises financial and familial stability. In the next section, we'll look at our claim that when adjusting for the inflation in the salary cap, the middle class has not changed much and what this means for roster building, and the NFLPA, before finally exploring our suggestions for how the NFLPA can best advocate for these middle class players.
 
 # How Has the Middle Class Changed?
 
-Over the past 10 years, we found that our four clusters had stayed largely consistent in terms of percent breakdown, with cluster 1 at \~88%, cluster 2 at \~9%, cluster 3 at \~3%, and cluster 4 at \~0.5%. But this does not mean that the salary cap inflation explains everything. For one, the NFL salary cap inflation has far outpaced US dollar inflation, meaning that cluster 1 players are making more now compared to 2015 vs the rest of the population. On the other hand, according to our analysis, the average NFL contract length when signed has gone down from 2.47 in 2015-2017 to 2.42 in 2022-2024. This decrease of 0.05 years per contract might not seem like much, but it means that one out of every twenty contracts is one year shorter than in 2015-2017, all else being equal. This provides a meaningful decrease in financial security – these players can't automatically replace that contract with a new one like a Dak Prescott who took shorter contracts on purpose to maximize his earnings. Furthermore, with a wide variety of NFL incentives being based on how many years you play in the NFL for, contracts being shorter now than in 2015-2017 hurts these middle class players who are seeking that long term security. Why has this happened? We believe the NFL is pretty saturated with players. As pointed out above, very few college players play in the NFL. With leagues like the UFL/XFL/CFL and now more European teams starting up, there are many pipelines into the NFL. Practice squads have gotten larger, teams are cycling through the back half of their rosters pretty quickly and aggressively choosing to spend the majority of salary, playing reps, and roster security on starters, and key reserves (often early draft picks). These veteran stopgap contracts have, to our eyes, become more common and fewer late draft picks are receiving second contracts with their drafted teams. This has led to a middle class that is roughly the same size – but shorter contracts, less potential to move up to cluster 2/3/4 contracts, and more mercenary-like treatment from teams. Addressing these concerns will be the focus of our four suggestions for the NFLPA to advocate for middle class players.
+Over the past 10 years, we found that our four clusters had stayed largely consistent in terms of percent breakdown, with cluster 1 at \~88%, cluster 2 at \~9%, cluster 3 at \~3%, and cluster 4 at \~0.5%. But this does not mean that the salary cap inflation explains everything. For one, the NFL salary cap inflation has far outpaced US dollar inflation, meaning that cluster 1 players are making more now compared to 2015 vs the rest of the population. On the other hand, according to our analysis, the average NFL contract length when signed has gone down from 2.47 in 2015-2017 to 2.42 in 2022-2024. This decrease of 0.05 years per contract might not seem like much, but it means that one out of every twenty contracts is one year shorter than in 2015-2017, all else being equal. This provides a meaningful decrease in financial security – these players can't automatically replace that contract with a new one like Dak Prescott who took shorter contracts on purpose to maximize his earnings. Furthermore, with a wide variety of NFL incentives being based on how many years you play in the NFL, contracts being shorter now than in 2015-2017 hurts these middle class players who are seeking long-term security. Why has this happened? We believe the NFL is pretty saturated with players. As pointed out above, very few college players play in the NFL. With leagues like the UFL/XFL/CFL and now more European teams starting up, there are many pipelines into the NFL. Practice squads have gotten larger, and teams are cycling through the back half of their rosters pretty quickly and aggressively choosing to spend the majority of salary, playing reps, and roster security on starters, and key reserves (often early draft picks). These veteran stopgap contracts have, to our eyes, become more common, and fewer late draft picks are receiving second contracts with their drafted teams. This has led to a middle class that is roughly the same size – but with shorter contracts, less potential to move up to cluster 2/3/4 contracts and more mercenary-like treatment from teams. Addressing these concerns will be the focus of our four suggestions for the NFLPA to advocate for middle class players.
+
+# NFLPA Advocacy Priorities
+
+## Suggestion 1: Salary Cap Dependent Contracts
+
+We're starting off hot, with a big change. We understand that these suggestions are supposed to be "feasible", but also believe that suggestions beneficial to all parties are inherently feasible. Currently, NFL contracts are signed for set fees for the duration of the contract. However, the salary cap changes each year and is not known significantly ahead of time, outside of predictions and a general trust in the success of the NFL allowing it to keep rising. Who benefits from this situation? Well everyone knows that the cap will keep rising, and so agents ask for more money on behalf of their players in the latter years of deals. Contracts are commonly restructured to align with the market. But we have seen a proliferation in high-end (or cluster 4 contracts) with substantial guarantees and APY increases even after adjusting for inflation.
+
+![Breakdown of Cluster 4 Contracts](images/breakdown2.png)
+
+20 million per year, 65 million more guaranteed. NFL teams are locking in their stars like never before, but this seems odd in a league where the salary cap is not known yet. These contracts are based on projections and they ripple down impacting all contracts signed in the league. Instead, we propose that contracts should be signed as a percentage of the salary cap, instead of 20 million in 2026 a player signs a contract worth 8% of the salary cap. How does this benefit players? It allows them to tap into the growth of the salary cap and sign longer-term contracts without worrying about the market changing and them not getting paid. Dak Prescott wouldn't have to try to hit the market every three years, he could (if he wanted) sign a long-term contract that would get him X% of the salary cap for the next 6 years. The middle-class of NFL players would also receive the growth effects from this percentage, and we expect the increased stability for both front offices and players would create greater comfort in multi-year contracts. NFL front offices currently have to operate under a variety of salary cap projections when trying to build their roster 3-7 years down the road. Therefore it makes sense that they do not want to commit money to the middle-class players who are unlikely to be building blocks and simply supporting players. The contracts they offer are going to be appropriately team-friendly, and players will appropriately reject them in favor of testing the market and seeking a fairer option. But we believe that % of salary cap based contracts would reduce the risk for players as these contracts would grow with the cap, and there would be a clearer going rate for a special teams stud and backup linebacker. One of the greatest benefits of salary cap dependent contracts is the ease of comparison between different years/eras/contracts which benefits players at the negotiating table and provides greater clarity to all parties. We foresee that opposition to a proposal like this would come from NFL front offices who believe they have an edge over other teams in their roster-building through projecting the salary cap more accurately and/or aggressively. It is in the player's interest to prevent front offices from taking advantage of this uncertainty. There's an interesting opinion piece written by Mike Florio in 2020 about this topic, that says "Many believe that the NFL’s Management Council doesn’t want to cross this bridge" but we hope the NFL can recognize that greater clarity in the roster-building process is only a benefit to the "smart" front offices[@florio]. This eliminates a certain element of luck or prognostication that comes from the changing (but mostly monotonically increasing) salary cap and increases the skill in the roster-building process. We hope that the NFLPA sees this suggestion as a way to increase transparency, clarity, and long-term stability for both players and teams in the contract negotiation process that is not dependent on any 3-7 year projection.[^1]
+
+[^1]: One potential downside would be if the salary cap were to decrease. The only time this has occurred in the modern era is the pandemic, which hopefully will never occur again. To play this safe, contracts could be signed with a salary cap floor of the current year of signing to prevent unpredictable and rare events from drastically hurting players salaries. We don't foresee a stagnation in the NFL salary cap anytime soon, but if a stagnation would occur, percentage-based contracts would still work well, it's only drastic downfalls that would hurt players as compared to the current system.
+
+## Suggestion 2: Maximum Salary for a Single Player
+
+The two other major American leagues with salary caps (NBA, NHL) have a rule that limits the maximum contract of a single player. We believe the NFL should implement this rule for the benefit of the middle class players. We believe this also benefits NFL teams by preventing bidding wars from getting too high for singular players, allowing these teams to spread their salary cap throughout the rest of their 53-man rosters. The people who would lose if a rule like this were implemented are NFL teams expecting to have a lot of salary space (aka non-competitive teams) and these generational players who are likely going to sign contracts for 100x the median player salary. Simply put, the NFLPA and the middle class of NFL players will benefit from a salary max like what has been implemented in the NBA and NHL. Although we are unsure what the exact number should be, one potential option could be a single cap of 30% of the salary cap (using suggestion 1's system here). For 2024's cap, this would be about 76 million dollars, giving the market some room to grow from Prescott's 60m APY. This is quite similar to the NBA's max player salary.
+
+## Suggestion 3: Guarantee the Rookie Year of all Draft Picks
+
+We believe guaranteeing the rookie year of all draft pick contracts rewards teams for giving these young players a chance to stay on a roster for a year and get their feet underneath them while simply just helping the middle class (basically all day 2 and day 3 picks are in cluster 1) make more money. UDFAs have the benefit of picking their team, and teams are committing bigger and bigger signing bonuses to the top players in the pool. We believe that a fully guaranteed rookie-year contract would benefit these late-round draft picks both in the short term and long term as teams would have to invest in these players. Furthermore, this would attempt to prevent teams from treating late-round draft picks as lottery tickets to be thrown out if they don't hit in the first few months. This measure would appropriately reward drafted players with a year of guaranteed NFL money and hopefully help these players acclimate to the league setting them up for future success rather than being tossed right back out to the waiver wire. UDFA and veteran players can and will compete for roster spots with these draft picks, but UDFAs could have gotten drafted while veterans have already had the opportunity to get their feet wet in the NFL in previous offseasons. Again, this measure would likely be opposed by NFL teams who commonly cut their rookies, but these salaries are mostly league minimum and reward NFL teams who draft well suggesting common support is possible. First and many second-round draft picks receive partially to fully guaranteed contracts, therefore we envision rookie year guarantees for later-round draft picks to be feasible.
+
+## Suggestion 4: Salary Cap Discount for Day 2/3 Draft Picks that Re-Sign/Extend with Draft Team
+
+Adding a salary cap discount for non-round one draft picks who re-sign might sound familiar to the four-year qualifying offer. Although we like the ideas behind the veterans discount and four-year qualifying offer, we envision a more open, encompassing option, unlimited in number, for teams to offer extensions and re-sign opportunities for players who are on or have finished their rookie four-year rookie deal. NFL players who are not day 1 draft picks still lack substantial financial security that this second contract offers. They can hop out of cluster 1 with some help from this discount. We envision there being a max APY to be eligible. By increasing the pathways to second contracts and, again, helping teams that draft and develop well stay competitive when trying to sign these players, we hope to create stronger developmental pathways from drafted (cluster 1/middle class) to second contract (cluster 2/stability). This suggestion is feasible due to the existence of multiple similar discounts and because NFL teams aim to develop talent, and teams that develop high-quality talent from days 2-3 should be incentivized to retain these players.
+
+# Conclusion
+
+We greatly appreciate the opportunity to submit this report on NFLPA advocacy for the "middle class" of NFL players. Our four suggestions would, if implemented, greatly change the landscape of second contracts for late-drafted players, increase opportunities for higher role-player contracts, and spread the salary cap more fairly to those middle class players. We believe strongly that all four of our proposals would also garner from NFL teams and league voices because they are rooted in the fundamental concept of paying good players, clarity and transparency in the roster-building process, and benefiting teams that do a better job than others. On behalf of UCLA and Bruin Sports Analytics, thank you for your time.
 
 ------------------------------------------------------------------------
+
+{{< pagebreak >}}
 
 # References
 
 ::: {#refs}
 :::
+
+{{< pagebreak >}}
 
 # Appendix A (K-means Clustering) : {#sec-appenda}
 
@@ -381,6 +443,7 @@ K-means clustering is a good choice for grouping data points but one key questio
 
 ```{r}
 #| label: wrapped_scree
+#| fig-cap: Scree Plot
 scree_plot
 ```
 
